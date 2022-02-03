@@ -1,6 +1,7 @@
 use super::datatypes::{
     DType,
-    DataType
+    DataType,
+    AnyType
 };
 
 #[derive(Debug, Clone)]
@@ -12,8 +13,8 @@ impl DType for Utf8 {
     }
 }
 
-impl From<String> for DataType {
-    fn from(value: String) -> Self {
-        DataType::Utf8(value)
+impl From<&'static str> for AnyType {
+    fn from(value: &'static str) -> Self {
+        AnyType::Utf8(value)
     }
 }

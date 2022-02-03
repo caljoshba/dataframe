@@ -1,25 +1,17 @@
 // https://github.com/pola-rs/polars/blob/master/polars/polars-core/src/datatypes.rs
 
-use super::{
-    bool::Boolean,
-    utf8::Utf8,
-    u8::UInt8,
-    u16::UInt16,
-    u32::UInt32,
-    u64::UInt64,
-    i8::Int8,
-    i16::Int16,
-    i32::Int32,
-    i64::Int64,
-    f32::Float32,
-    f64::Float64,
-};
 use std::hash::{Hash, Hasher};
+use std::fmt::{
+    Display,
+    Formatter,
+    Result
+};
 
-pub enum DataType {
+#[derive(Debug, Copy, Clone)]
+pub enum AnyType {
     Null,
     Boolean(bool),
-    Utf8(String),
+    Utf8(&'static str),
     UInt8(u8),
     UInt16(u16),
     UInt32(u32),
@@ -36,9 +28,21 @@ pub enum DataType {
     // Time,
 }
 
-impl Hash for DataType {
+impl<T> From<Option<T>> for AnyType
+where
+    T: Into<AnyType>,
+{
+    fn from(a: Option<T>) -> Self {
+        match a {
+            None => AnyType::Null,
+            Some(v) => v.into(),
+        }
+    }
+}
+
+impl Hash for AnyType {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        use DataType::*;
+        use AnyType::*;
         match self {
             Null => state.write_u64(u64::MAX / 2 + 135123),
             Int8(v) => state.write_i8(*v),
@@ -56,7 +60,45 @@ impl Hash for DataType {
     }
 }
 
-impl Eq for AnyValue {}
+impl Display for AnyType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let value = match self {
+            AnyType::Null => "null".to_string(),
+            AnyType::Boolean(val) => val.to_string(),
+            AnyType::Utf8(val) => val.to_string(),
+            AnyType::UInt8(val) => val.to_string(),
+            AnyType::UInt16(val) => val.to_string(),
+            AnyType::UInt32(val) => val.to_string(),
+            AnyType::UInt64(val) => val.to_string(),
+            AnyType::Int8(val) => val.to_string(),
+            AnyType::Int16(val) => val.to_string(),
+            AnyType::Int32(val) => val.to_string(),
+            AnyType::Int64(val) => val.to_string(),
+            AnyType::Float32(val) => val.to_string(),
+            AnyType::Float64(val) => val.to_string()
+        };
+        write!(f, "{}", value)
+    }
+}
+
+// #[derive(Clone, PartialEq, Eq, Debug, Hash)]
+pub enum DataType {
+    Null,
+    Boolean,
+    Utf8,
+    UInt8,
+    UInt16,
+    UInt32,
+    UInt64,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Float32,
+    Float64
+}
+
+// impl Eq for AnyType {}
 
 // #[derive(Debug, Clone)]
 // pub struct Date {}
@@ -67,6 +109,27 @@ impl Eq for AnyValue {}
 // #[derive(Debug, Clone)]
 // pub struct Time {}
 
+impl Display for DataType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            DataType::Null => "null",
+            DataType::Boolean => "bool",
+            DataType::UInt8 => "u8",
+            DataType::UInt16 => "u16",
+            DataType::UInt32 => "u32",
+            DataType::UInt64 => "u64",
+            DataType::Int8 => "i8",
+            DataType::Int16 => "i16",
+            DataType::Int32 => "i32",
+            DataType::Int64 => "i64",
+            DataType::Float32 => "f32",
+            DataType::Float64 => "f64",
+            DataType::Utf8 => "String",
+        };
+        f.write_str(s)
+    }
+}
+
 pub trait DType {
-    fn dtype() -> DataType where Self: Sized
+    fn dtype() -> DataType where Self: Sized;
 }

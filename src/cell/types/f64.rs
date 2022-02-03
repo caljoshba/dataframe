@@ -1,6 +1,7 @@
 use super::datatypes::{
     DType,
-    DataType
+    DataType,
+    AnyType
 };
 
 #[derive(Debug, Clone)]
@@ -12,8 +13,8 @@ impl DType for Float64 {
     }
 }
 
-impl From<f64> for DataType {
+impl From<f64> for AnyType {
     fn from(value: f64) -> Self {
-        DataType::Float64(value)
+        AnyType::Float64(value)
     }
 }

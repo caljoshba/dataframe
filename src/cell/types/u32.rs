@@ -1,6 +1,7 @@
 use super::datatypes::{
     DType,
-    DataType
+    DataType,
+    AnyType
 };
 
 #[derive(Debug, Clone)]
@@ -12,8 +13,8 @@ impl DType for UInt32 {
     }
 }
 
-impl From<u32> for DataType {
+impl From<u32> for AnyType {
     fn from(value: u32) -> Self {
-        DataType::UInt32(value)
+        AnyType::UInt32(value)
     }
 }

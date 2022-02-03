@@ -1,5 +1,7 @@
 use super::datatypes::{
-    DType
+    DType,
+    DataType,
+    AnyType
 };
 
 #[derive(Debug, Clone)]
@@ -11,8 +13,8 @@ impl DType for Boolean {
     }
 }
 
-impl From<bool> for DataType {
+impl From<bool> for AnyType {
     fn from(value: bool) -> Self {
-        DataType::Boolean(value)
+        AnyType::Boolean(value)
     }
 }
