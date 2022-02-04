@@ -62,22 +62,21 @@ impl Hash for AnyType {
 
 impl Display for AnyType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let value = match self {
-            AnyType::Null => "null".to_string(),
-            AnyType::Boolean(val) => val.to_string(),
-            AnyType::Utf8(val) => val.to_string(),
-            AnyType::UInt8(val) => val.to_string(),
-            AnyType::UInt16(val) => val.to_string(),
-            AnyType::UInt32(val) => val.to_string(),
-            AnyType::UInt64(val) => val.to_string(),
-            AnyType::Int8(val) => val.to_string(),
-            AnyType::Int16(val) => val.to_string(),
-            AnyType::Int32(val) => val.to_string(),
-            AnyType::Int64(val) => val.to_string(),
-            AnyType::Float32(val) => val.to_string(),
-            AnyType::Float64(val) => val.to_string()
-        };
-        write!(f, "{}", value)
+        match self {
+            AnyType::Null => write!(f, "null"),
+            AnyType::Boolean(val) => write!(f, "{}", val),
+            AnyType::Utf8(val) => write!(f, "{}", val),
+            AnyType::UInt8(val) => write!(f, "{}", val),
+            AnyType::UInt16(val) => write!(f, "{}", val),
+            AnyType::UInt32(val) => write!(f, "{}", val),
+            AnyType::UInt64(val) => write!(f, "{}", val),
+            AnyType::Int8(val) => write!(f, "{}", val),
+            AnyType::Int16(val) => write!(f, "{}", val),
+            AnyType::Int32(val) => write!(f, "{}", val),
+            AnyType::Int64(val) => write!(f, "{}", val),
+            AnyType::Float32(val) => write!(f, "{}", val),
+            AnyType::Float64(val) => write!(f, "{}", val)
+        }
     }
 }
 
@@ -98,7 +97,29 @@ pub enum DataType {
     Float64
 }
 
-// impl Eq for AnyType {}
+impl PartialEq for AnyType {
+    fn eq(&self, other: &Self) -> bool {
+        use AnyType::*;
+        match (self, other) {
+            (Null, Null) => true,
+            (Boolean(val), Boolean(rhs)) => val == rhs,
+            (Utf8(val), Utf8(rhs)) => val == rhs,
+            (UInt8(val), UInt8(rhs)) => val == rhs,
+            (UInt16(val), UInt16(rhs)) => val == rhs,
+            (UInt32(val), UInt32(rhs)) => val == rhs,
+            (UInt64(val), UInt64(rhs)) => val == rhs,
+            (Int8(val), Int8(rhs)) => val == rhs,
+            (Int16(val), Int16(rhs)) => val == rhs,
+            (Int32(val), Int32(rhs)) => val == rhs,
+            (Int64(val), Int64(rhs)) => val == rhs,
+            (Float32(val), Float32(rhs)) => val == rhs,
+            (Float64(val), Float64(rhs)) => val == rhs,
+            (_, _) => false
+        }
+    }
+}
+
+impl Eq for AnyType {}
 
 // #[derive(Debug, Clone)]
 // pub struct Date {}
@@ -110,7 +131,7 @@ pub enum DataType {
 // pub struct Time {}
 
 impl Display for DataType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let s = match self {
             DataType::Null => "null",
             DataType::Boolean => "bool",

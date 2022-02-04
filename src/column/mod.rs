@@ -4,10 +4,13 @@ use crate::cell::{
     RcCell
 };
 
-use std::cell::RefCell;
+use std::cell::{
+    RefCell,
+    Ref
+};
 
 pub struct Column {
-    pub cells: RefCell<Vec<RcCell>>,
+    cells: RefCell<Vec<RcCell>>,
     pub name: &'static str,
 }
 
@@ -19,7 +22,15 @@ impl Column {
         }
     }
 
+    pub fn get_cells(&self) -> Ref<Vec<RcCell>> {
+        self.cells.borrow()
+    }
+
     pub fn add_cell(&mut self, cell: RcCell) {
         self.cells.borrow_mut().push(cell);
+    }
+
+    pub fn drop_cell(&mut self, cell: RcCell) {
+        self.cells.borrow_mut().retain(|c| c.clone() != cell);
     }
 }

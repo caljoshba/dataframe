@@ -9,18 +9,39 @@ use std::rc::{ Rc };
 
 // #[derive(Display)]
 pub struct Cell {
-    pub value: AnyType,
-    row: RcRow
+    value: AnyType,
+    row: RcRow,
+    column_name: &'static str,
 }
 
 impl Cell {
-    pub fn new(value: AnyType, row: &RcRow) -> RcCell {
+    pub fn new(value: AnyType, row: &RcRow, column_name: &'static str) -> RcCell {
         Rc::new(RefCell::new(Self {
             value: value,
-            row: Rc::clone(&row)
+            row: Rc::clone(&row),
+            column_name
         }))
     }
+
+    fn get_row(&self) -> RcRow {
+        self.row.clone()
+    }
+
+    pub fn get_value(&self) -> &AnyType {
+        &self.value
+    }
+
+    pub fn clone_row(&self) -> RcRow {
+        self.row.clone()
+    }
 }
+
+impl PartialEq for Cell {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.row.borrow().index == other.row.borrow().index
+    }
+}
+impl Eq for Cell {}
 
 pub type AnyTypeCell = RefCell<Cell>;
 pub type RcCell = Rc<AnyTypeCell>;

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod cell;
 mod column;
 mod row;
@@ -21,9 +22,9 @@ fn main() {
         "whoop".into()
     ];
     dataframe.add_row(cell_values);
-    for column in dataframe.columns.iter() {
-        for cell in column.cells.borrow().iter() {
-            println!("{}", cell.borrow().value);
+    for column in dataframe.get_columns().iter() {
+        for cell in column.get_cells().iter() {
+            println!("{}", cell.borrow().get_value());
         }
     }
 }
