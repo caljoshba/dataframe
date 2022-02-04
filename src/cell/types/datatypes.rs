@@ -55,7 +55,8 @@ impl Hash for AnyType {
             UInt64(v) => state.write_u64(*v),
             Utf8(s) => state.write(s.as_bytes()),
             Boolean(v) => state.write_u8(*v as u8),
-            _ => unimplemented!(),
+            Float32(v) => state.write_i32(v.floor() as i32),
+            Float64(v) => state.write_i64(v.floor() as i64),
         }
     }
 }

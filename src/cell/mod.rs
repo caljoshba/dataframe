@@ -24,7 +24,7 @@ impl Cell {
     }
 
     fn get_row(&self) -> RcRow {
-        self.row.clone()
+        Rc::clone(&self.row)
     }
 
     pub fn get_value(&self) -> &AnyType {
@@ -32,7 +32,7 @@ impl Cell {
     }
 
     pub fn clone_row(&self) -> RcRow {
-        self.row.clone()
+        Rc::clone(&self.row)
     }
 }
 

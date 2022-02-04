@@ -53,7 +53,7 @@ impl DataFrame {
         self.rows.borrow_mut().push(row);
     }
 
-    pub fn add_column(&mut self, column_name: &'static str, cell_values: Vec<AnyType>) {
+    pub fn add_column_from_values(&mut self, column_name: &'static str, cell_values: Vec<AnyType>) {
         let mut column = Column::new(column_name);
         for (index, cell_value) in cell_values.iter().enumerate() {
             let row = &self.rows.borrow()[index];
@@ -61,6 +61,10 @@ impl DataFrame {
             row.borrow_mut().add_cell(&cell);
             column.add_cell(cell);
         }
+        self.columns.push(column);
+    }
+
+    pub fn add_column(&mut self, column: Column) {
         self.columns.push(column);
     }
 

@@ -28,7 +28,7 @@ impl Row {
     }
 
     pub fn drop_cell(&mut self, cell: &RcCell) {
-        self.cells.borrow_mut().retain(|c| c.upgrade().unwrap() != cell.clone());
+        self.cells.borrow_mut().retain(|c| c.upgrade().unwrap() != Rc::clone(cell));
     }
 
     pub fn get_cells(&self) -> Ref<Vec<Weak<AnyTypeCell>>> {
