@@ -4,6 +4,7 @@ use super::datatypes::{
     AnyType
 };
 
+
 #[derive(Debug, Clone)]
 pub struct Boolean {}
 

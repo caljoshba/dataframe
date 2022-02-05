@@ -43,5 +43,10 @@ impl PartialEq for Cell {
 }
 impl Eq for Cell {}
 
+// pub trait RollingMean {
+//     fn rolling_mean(&self, mean_over: usize) -> Option<AnyType>;
+//     fn sum_values(&self, total_values: usize) -> Option<AnyType>;
+// }
+
 pub type AnyTypeCell = RefCell<Cell>;
 pub type RcCell = Rc<AnyTypeCell>;

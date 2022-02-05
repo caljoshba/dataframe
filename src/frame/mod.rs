@@ -95,6 +95,10 @@ impl DataFrame {
         let index = self.columns.iter().position(|c| c.name == column_name).unwrap();
         self.drop_column(index);
     }
+
+    // pub fn rolling_average(&self) {
+
+    // }
 }
 #[cfg(test)]
 mod tests {

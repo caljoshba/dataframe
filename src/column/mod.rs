@@ -69,15 +69,56 @@ impl Column {
             AnyType::Int16(_) => types::i16::mean(self),
             AnyType::Int32(_) => types::i32::mean(self),
             AnyType::Int64(_) => types::i64::mean(self),
+            AnyType::ISize(_) => types::isize::mean(self),
             AnyType::UInt8(_) => types::u8::mean(self),
             AnyType::UInt16(_) => types::u16::mean(self),
             AnyType::UInt32(_) => types::u32::mean(self),
             AnyType::UInt64(_) => types::u64::mean(self),
+            AnyType::USize(_) => types::usize::mean(self),
             AnyType::Utf8(_) => types::utf8::mean(self),
         }
     }
-}
 
-pub trait GroupValues {
-    fn add_to_grouped_values(&mut self, cell: RcCell) -> HashMap<AnyType, RefCell<Vec<RcCell>>>;
+    pub fn rolling_mean(&self, mean_over: usize) -> Vec<AnyType> {
+        let cells = self.cells.borrow();
+        if cells.len() < mean_over {
+            return vec![AnyType::Null; cells.len()];
+        }
+
+        let mut rolling_mean_values: Vec<AnyType> = vec![];
+
+        for slice in cells.windows(mean_over) {
+            if slice[0].borrow().get_value() == &AnyType::Null {
+                rolling_mean_values.push(AnyType::Null);
+            } else {
+                let value: Vec<AnyType> = self.sum_slice_values(slice);
+                rolling_mean_values.push(value[0] / value[1]);
+            }            
+        }
+
+        rolling_mean_values
+    }
+
+    pub fn cell_rolling_mean(&self, mean_over: usize, cell: &RcCell) -> AnyType {
+        let mut rolling_mean = AnyType::Null;
+        let cells = &self.cells.borrow();
+        if cells.len() < mean_over {
+            return rolling_mean;
+        } else if let Some(cell_location) = &cells.iter().rposition(|c| c == cell) {
+            let column_slice = &cells[(cell_location - (mean_over - 1))..=*cell_location];
+            let value: Vec<AnyType> = self.sum_slice_values(column_slice);
+            rolling_mean = value[0] / value[1];
+        }
+        rolling_mean        
+    }
+
+    fn sum_slice_values(&self, slice: &[RcCell]) -> Vec<AnyType> {
+        slice.iter().fold(vec![AnyType::Null, 0usize.into()], |mut acc, x| if x.borrow().get_value() != &AnyType::Null {
+            acc[0] = acc[0] + *x.borrow().get_value();
+            acc[1] = acc[1] + 1usize.into();
+            acc
+        } else {
+            acc
+        })
+    }
 }
