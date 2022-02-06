@@ -12,6 +12,7 @@ pub struct Cell {
     value: AnyType,
     row: RcRow,
     column_name: &'static str,
+    rolling_mean: Option<AnyType>,
 }
 
 impl Cell {
@@ -19,12 +20,13 @@ impl Cell {
         Rc::new(RefCell::new(Self {
             value: value,
             row: Rc::clone(&row),
-            column_name
+            column_name,
+            rolling_mean: None,
         }))
     }
 
-    fn get_row(&self) -> RcRow {
-        Rc::clone(&self.row)
+    pub fn get_row(&self) -> &RcRow {
+        &self.row
     }
 
     pub fn get_value(&self) -> &AnyType {
@@ -33,6 +35,10 @@ impl Cell {
 
     pub fn clone_row(&self) -> RcRow {
         Rc::clone(&self.row)
+    }
+
+    pub fn set_rolling_mean(&mut self, rolling_mean: Option<AnyType>) {
+        self.rolling_mean = rolling_mean;
     }
 }
 

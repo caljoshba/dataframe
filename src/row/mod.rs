@@ -34,6 +34,10 @@ impl Row {
     pub fn get_cells(&self) -> Ref<Vec<Weak<AnyTypeCell>>> {
         self.cells.borrow()
     }
+
+    pub fn update_index(&mut self, index: usize) {
+        self.index = index;
+    }
 }
 
 impl PartialEq for Row {

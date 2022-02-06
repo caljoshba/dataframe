@@ -8,7 +8,8 @@ use std::fmt::{
 };
 use std::ops::{
     Add,
-    Div
+    Div,
+    Sub
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -163,6 +164,28 @@ impl Div for AnyType {
     }
 }
 
+impl Sub for AnyType {
+    type Output = AnyType;
+    fn sub(self, rhs: Self) -> Self::Output {
+        use AnyType::*;
+        match (self, rhs) {
+            (UInt8(lv), UInt8(rv)) => ISize(lv as isize - rv as isize ),
+            (UInt16(lv), UInt16(rv)) => ISize(lv as isize - rv as isize),
+            (UInt32(lv), UInt32(rv)) => ISize(lv as isize - rv as isize),
+            (UInt64(lv), UInt64(rv)) => ISize(lv as isize - rv as isize),
+            (USize(lv), USize(rv)) => ISize(lv as isize - rv as isize),
+            (Int8(lv), Int8(rv)) => ISize(lv as isize - rv as isize),
+            (Int16(lv), Int16(rv)) => ISize(lv as isize - rv as isize),
+            (Int32(lv), Int32(rv)) => ISize(lv as isize - rv as isize),
+            (Int64(lv), Int64(rv)) => ISize(lv as isize - rv as isize),
+            (ISize(lv), ISize(rv)) => ISize(lv as isize - rv as isize),
+            (Float32(lv), Float32(rv)) => ISize(lv as isize - rv as isize),
+            (Float64(lv), Float64(rv)) => ISize(lv as isize - rv as isize),
+            (_, _) => Null 
+        }     
+    }
+}
+
 // #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub enum DataType {
     Null,
@@ -232,7 +255,7 @@ impl Display for DataType {
             DataType::ISize => "isize",
             DataType::Float32 => "f32",
             DataType::Float64 => "f64",
-            DataType::Utf8 => "String",
+            DataType::Utf8 => "&'static str",
         };
         f.write_str(s)
     }

@@ -1,3 +1,5 @@
+#![allow(unused_assignments)]
+
 pub mod types;
 
 use crate::cell::{
@@ -13,18 +15,40 @@ use std::cell::{
 use std::rc::{ Rc };
 use std::collections::HashMap;
 
+pub struct RollingMean {
+    should_calculate: bool,
+    mean_over: usize
+}
+
+impl RollingMean {
+    pub fn new(mut should_calculate: bool, mean_over_option: Option<usize>) -> Self {
+        let mut mean_over = 0usize;
+        if let Some(mean) = mean_over_option {
+            mean_over = mean;
+        } else if should_calculate {
+            should_calculate = false; 
+        }
+        Self {
+            should_calculate,
+            mean_over
+        }
+    }
+}
+
 pub struct Column {
     cells: RefCell<Vec<RcCell>>,
+    grouped_values: HashMap<AnyType, RefCell<Vec<RcCell>>>,
     pub name: &'static str,
-    grouped_values: HashMap<AnyType, RefCell<Vec<RcCell>>>
+    pub rolling_mean: RollingMean,
 }
 
 impl Column {
-    pub fn new(name: &'static str) -> Self {
+    pub fn new(name: &'static str, rolling_mean: RollingMean) -> Self {
         Self {
             cells: RefCell::new(vec![]),
+            grouped_values: HashMap::new(),
             name,
-            grouped_values: HashMap::new()
+            rolling_mean,
         }
     }
 
@@ -32,14 +56,29 @@ impl Column {
         self.cells.borrow()
     }
 
-    pub fn add_cell(&mut self, cell: RcCell) {
-        self.add_to_grouped_values(&cell);
-        self.cells.borrow_mut().push(cell);
+    pub fn add_cell(&mut self, cell: &RcCell) {
+        self.add_to_grouped_values(cell);
+        self.cells.borrow_mut().push(Rc::clone(cell));
+        if self.rolling_mean.should_calculate {
+            self.cell_rolling_mean(self.rolling_mean.mean_over, cell);
+        }
     }
 
     pub fn drop_cell(&mut self, cell: RcCell) {
         self.remove_from_grouped_values(&cell);
-        self.cells.borrow_mut().retain(|c| *c != cell);
+        let mut cells = self.cells.borrow_mut();
+        let cell_location = cell.borrow().get_row().borrow().index;
+        cells.remove(cell_location);
+        self.recalculate_rolling_means(&cell_location);
+    }
+
+    fn recalculate_rolling_means(&self, cell_location: &usize) {
+        if self.rolling_mean.should_calculate {
+            let cells_to_recalculate = &self.cells.borrow()[*cell_location..(cell_location + self.rolling_mean.mean_over - 1)];
+            for cell in cells_to_recalculate.iter() {
+                self.cell_rolling_mean(self.rolling_mean.mean_over, cell);
+            }
+        }
     }
 
     fn add_to_grouped_values(&mut self, cell: &RcCell) {
@@ -79,36 +118,53 @@ impl Column {
         }
     }
 
-    pub fn rolling_mean(&self, mean_over: usize) -> Vec<AnyType> {
-        let cells = self.cells.borrow();
-        if cells.len() < mean_over {
-            return vec![AnyType::Null; cells.len()];
+    pub fn update_rolling_mean(&mut self, rolling_mean: RollingMean) {
+        if rolling_mean.should_calculate != self.rolling_mean.should_calculate || rolling_mean.mean_over != self.rolling_mean.mean_over {
+            self.rolling_mean = rolling_mean;
         }
 
-        let mut rolling_mean_values: Vec<AnyType> = vec![];
-
-        for slice in cells.windows(mean_over) {
-            if slice[0].borrow().get_value() == &AnyType::Null {
-                rolling_mean_values.push(AnyType::Null);
+        for cell in self.cells.borrow().iter() {
+            if self.rolling_mean.should_calculate {
+                self.cell_rolling_mean(self.rolling_mean.mean_over, &cell);
             } else {
-                let value: Vec<AnyType> = self.sum_slice_values(slice);
-                rolling_mean_values.push(value[0] / value[1]);
+                cell.borrow_mut().set_rolling_mean(None);
             }            
         }
-
-        rolling_mean_values
+        
     }
 
-    pub fn cell_rolling_mean(&self, mean_over: usize, cell: &RcCell) -> AnyType {
-        let mut rolling_mean = AnyType::Null;
+    // pub fn rolling_mean(&self, mean_over: usize) -> Vec<AnyType> {
+    //     let cells = self.cells.borrow();
+    //     if cells.len() < mean_over {
+    //         return vec![AnyType::Null; cells.len()];
+    //     }
+
+    //     let mut rolling_mean_values: Vec<AnyType> = vec![];
+
+    //     for slice in cells.windows(mean_over) {
+    //         if slice[0].borrow().get_value() == &AnyType::Null {
+    //             rolling_mean_values.push(AnyType::Null);
+    //         } else {
+    //             let value: Vec<AnyType> = self.sum_slice_values(slice);
+    //             rolling_mean_values.push(value[0] / value[1]);
+    //         }            
+    //     }
+
+    //     rolling_mean_values
+    // }
+
+    pub fn cell_rolling_mean(&self, mean_over: usize, cell: &RcCell) -> Option<AnyType> {
+        let mut rolling_mean = None;
         let cells = &self.cells.borrow();
         if cells.len() < mean_over {
-            return rolling_mean;
-        } else if let Some(cell_location) = &cells.iter().rposition(|c| c == cell) {
-            let column_slice = &cells[(cell_location - (mean_over - 1))..=*cell_location];
+            rolling_mean = None;
+        } else {
+            let cell_location = cell.borrow().get_row().borrow().index;
+            let column_slice = &cells[(cell_location - (mean_over - 1))..=cell_location];
             let value: Vec<AnyType> = self.sum_slice_values(column_slice);
-            rolling_mean = value[0] / value[1];
+            rolling_mean = Some(value[0] / value[1]);
         }
+        cell.borrow_mut().set_rolling_mean(rolling_mean);
         rolling_mean        
     }
 
@@ -120,5 +176,22 @@ impl Column {
         } else {
             acc
         })
+    }
+
+    pub fn get_difference_to_last(&self) -> Vec<AnyType> {
+        let mut differences: Vec<AnyType> = vec![];
+        let cells = self.cells.borrow();
+        for (index, cell) in cells.iter().enumerate() {
+            if index == 0 {
+                differences.push(AnyType::Null);
+                continue;
+            }
+
+            let previous_value = cells[index - 1].borrow().get_value().clone();
+            let current_value = cell.borrow().get_value().clone();
+
+            differences.push((current_value - previous_value).into());
+        }
+        differences
     }
 }

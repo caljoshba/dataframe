@@ -3,7 +3,8 @@ use crate::row::{
     RcRow
 };
 use crate::column::{
-    Column
+    Column,
+    RollingMean
 };
 use crate::cell::{
     types::datatypes::AnyType,
@@ -11,7 +12,8 @@ use crate::cell::{
 };
 use std::cell::{
     RefCell,
-    Ref
+    Ref,
+    RefMut,
 };
 
 pub struct DataFrame {
@@ -23,7 +25,7 @@ impl DataFrame {
     pub fn new(column_names: Vec<&'static str>) -> Self {
         let mut columns = vec![];
         for column_name in column_names.iter() {
-            let column = Column::new(*column_name);
+            let column = Column::new(*column_name, RollingMean::new(false, None));
             columns.push(column);
         }
 
@@ -48,18 +50,18 @@ impl DataFrame {
             let column: &mut Column = &mut self.columns[index];
             let cell = Cell::new(*cell_value, &row, &column.name.clone());
             row.borrow_mut().add_cell(&cell);
-            column.add_cell(cell);
+            column.add_cell(&cell);
         }
         self.rows.borrow_mut().push(row);
     }
 
-    pub fn add_column_from_values(&mut self, column_name: &'static str, cell_values: Vec<AnyType>) {
-        let mut column = Column::new(column_name);
+    pub fn add_column_from_values(&mut self, column_name: &'static str, cell_values: Vec<AnyType>, rolling_mean: RollingMean) {
+        let mut column = Column::new(column_name, rolling_mean);
         for (index, cell_value) in cell_values.iter().enumerate() {
             let row = &self.rows.borrow()[index];
             let cell = Cell::new(*cell_value, row, column_name.clone());
             row.borrow_mut().add_cell(&cell);
-            column.add_cell(cell);
+            column.add_cell(&cell);
         }
         self.columns.push(column);
     }
@@ -75,11 +77,18 @@ impl DataFrame {
     pub fn drop_row(&mut self, row_index: usize) {
         let mut rows = self.rows.borrow_mut();
         let row: Vec<RcRow> = rows.drain(row_index..row_index+1).collect();
+        self.update_row_index(&rows);
         for (column_index, cell) in row[0].borrow().get_cells().iter().enumerate() {
             let column = &mut self.columns[column_index];
             column.drop_cell(cell.upgrade().unwrap());
         }
         drop(row);
+    }
+
+    fn update_row_index(&self, rows: &RefMut<Vec<RcRow>>) {
+        for (index, row) in rows.iter().enumerate() {
+            row.borrow_mut().update_index(index);
+        }
     }
 
     pub fn drop_column(&mut self, column_index: usize) {
@@ -96,9 +105,20 @@ impl DataFrame {
         self.drop_column(index);
     }
 
-    // pub fn rolling_average(&self) {
+    pub fn update_column_rolling_mean(&mut self, column_name: &'static str, rolling_mean: RollingMean) {
+        let column_option = self.columns.iter_mut().find(|c| c.name == column_name);
+        if let Some(column) = column_option {
+            column.update_rolling_mean(rolling_mean);
+        }
+    }
 
-    // }
+    pub fn get_returns_for_column(&mut self, column_name: &'static str, new_column_name: &'static str) {
+        let column_option = self.columns.iter().find(|c| c.name == column_name);
+        if let Some(column) = column_option {
+            let values: Vec<AnyType> = column.get_difference_to_last();
+            self.add_column_from_values(new_column_name, values, RollingMean::new(true, Some(5)));
+        }
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -126,6 +146,7 @@ mod tests {
 
         assert!(cell_ref.upgrade().is_none());
         assert_eq!(dataframe.get_rows().len(), 1);
+        assert_eq!(dataframe.get_rows()[0].borrow().index, 0);
         assert_eq!(dataframe.get_columns()[0].get_cells().len(), 1);
     }
 
