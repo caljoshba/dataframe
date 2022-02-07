@@ -9,7 +9,8 @@ use std::fmt::{
 use std::ops::{
     Add,
     Div,
-    Sub
+    Mul,
+    Sub,
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -164,12 +165,50 @@ impl Div for AnyType {
     }
 }
 
+impl Mul for AnyType {
+    type Output = AnyType;
+    fn mul(self, rhs: Self) -> Self::Output {
+        use AnyType::*;
+        match (self, rhs) {
+            (UInt8(lv), UInt8(rv)) => USize(lv as usize * rv as usize),
+            (UInt16(lv), UInt16(rv)) => USize(lv as usize * rv as usize),
+            (UInt32(lv), UInt32(rv)) => USize(lv as usize * rv as usize),
+            (UInt64(lv), UInt64(rv)) => USize(lv as usize * rv as usize),
+            (USize(lv), USize(rv)) => USize(lv * rv),
+            (Int8(lv), Int8(rv)) => ISize(lv as isize * rv as isize),
+            (Int16(lv), Int16(rv)) => ISize(lv as isize * rv as isize),
+            (Int32(lv), Int32(rv)) => ISize(lv as isize * rv as isize),
+            (Int64(lv), Int64(rv)) => ISize(lv as isize * rv as isize),
+            (ISize(lv), ISize(rv)) => ISize(lv * rv),
+            (Float32(lv), Float32(rv)) => Float64(lv as f64 * rv as f64),
+            (Float64(lv), Float64(rv)) => Float64(lv * rv),
+            (UInt8(lv), USize(rv)) => USize(lv as usize * rv),
+            (UInt16(lv), USize(rv)) => USize(lv as usize * rv),
+            (UInt32(lv), USize(rv)) => USize(lv as usize * rv),
+            (UInt64(lv), USize(rv)) => USize(lv as usize * rv),
+            (Int8(lv), USize(rv)) => ISize(lv as isize * rv as isize),
+            (Int16(lv), USize(rv)) => ISize(lv as isize * rv as isize),
+            (Int32(lv), USize(rv)) => ISize(lv as isize * rv as isize),
+            (Int64(lv), USize(rv)) => ISize(lv as isize * rv as isize),
+            (Float32(lv), USize(rv)) => Float64(lv as f64 * rv as f64),
+            (Float64(lv), USize(rv)) => Float64(lv * rv as f64),
+            (Int8(lv), ISize(rv)) => ISize(lv as isize * rv as isize),
+            (Int16(lv), ISize(rv)) => ISize(lv as isize * rv as isize),
+            (Int32(lv), ISize(rv)) => ISize(lv as isize * rv as isize),
+            (Int64(lv), ISize(rv)) => ISize(lv as isize * rv as isize),
+            (Float32(lv), ISize(rv)) => Float64(lv as f64 * rv as f64),
+            (Float64(lv), ISize(rv)) => Float64(lv * rv as f64),
+            (_, _) => Null 
+        }     
+    }
+}
+
 impl Sub for AnyType {
     type Output = AnyType;
     fn sub(self, rhs: Self) -> Self::Output {
         use AnyType::*;
         match (self, rhs) {
-            (UInt8(lv), UInt8(rv)) => ISize(lv as isize - rv as isize ),
+            (UInt8(lv), UInt8(rv)) => ISize(lv as isize - rv as isize),
             (UInt16(lv), UInt16(rv)) => ISize(lv as isize - rv as isize),
             (UInt32(lv), UInt32(rv)) => ISize(lv as isize - rv as isize),
             (UInt64(lv), UInt64(rv)) => ISize(lv as isize - rv as isize),
@@ -179,8 +218,8 @@ impl Sub for AnyType {
             (Int32(lv), Int32(rv)) => ISize(lv as isize - rv as isize),
             (Int64(lv), Int64(rv)) => ISize(lv as isize - rv as isize),
             (ISize(lv), ISize(rv)) => ISize(lv as isize - rv as isize),
-            (Float32(lv), Float32(rv)) => ISize(lv as isize - rv as isize),
-            (Float64(lv), Float64(rv)) => ISize(lv as isize - rv as isize),
+            (Float32(lv), Float32(rv)) => Float32(lv - rv),
+            (Float64(lv), Float64(rv)) => Float64(lv - rv),
             (_, _) => Null 
         }     
     }
@@ -216,10 +255,12 @@ impl PartialEq for AnyType {
             (UInt16(val), UInt16(rhs)) => val == rhs,
             (UInt32(val), UInt32(rhs)) => val == rhs,
             (UInt64(val), UInt64(rhs)) => val == rhs,
+            (USize(val), USize(rhs)) => val == rhs,
             (Int8(val), Int8(rhs)) => val == rhs,
             (Int16(val), Int16(rhs)) => val == rhs,
             (Int32(val), Int32(rhs)) => val == rhs,
             (Int64(val), Int64(rhs)) => val == rhs,
+            (ISize(val), ISize(rhs)) => val == rhs,
             (Float32(val), Float32(rhs)) => val == rhs,
             (Float64(val), Float64(rhs)) => val == rhs,
             (_, _) => false
@@ -263,4 +304,126 @@ impl Display for DataType {
 
 pub trait DType {
     fn dtype() -> DataType where Self: Sized;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn input_none() {
+        let none: Option<u8> = None;
+        let value: AnyType = none.into();
+        assert!(value == AnyType::Null);
+    }
+    #[test]
+    fn input_u8() {
+        let value: AnyType = 3u8.into();
+        assert!(value == AnyType::UInt8(3));
+    }
+    #[test]
+    fn u8_addition() {
+        let initial: AnyType = 3u8.into();
+        let secondary: AnyType = 2u8.into();
+
+        let value = initial + secondary;
+        assert!(value == AnyType::UInt8(5));
+    }
+    #[test]
+    fn u8_subtraction() {
+        let initial: AnyType = 3u8.into();
+        let secondary: AnyType = 5u8.into();
+
+        let value = initial - secondary;
+        assert!(value == AnyType::ISize(-2isize));
+    }
+    #[test]
+    fn u8_multiplcation() {
+        let initial: AnyType = 3u8.into();
+        let secondary: AnyType = 2u8.into();
+
+        let value = initial * secondary;
+        assert!(value == AnyType::USize(6usize));
+    }
+    #[test]
+    fn u8_division() {
+        let initial: AnyType = 6u8.into();
+        let secondary: AnyType = 2u8.into();
+
+        let value = initial / secondary;
+        assert!(value == AnyType::UInt8(3u8));
+    }
+    #[test]
+    fn input_u16() {
+        let value: AnyType = 3u16.into();
+        assert!(value == AnyType::UInt16(3u16));
+    }
+    #[test]
+    fn u16_addition() {
+        let initial: AnyType = 3u16.into();
+        let secondary: AnyType = 2u16.into();
+
+        let value = initial + secondary;
+        assert!(value == AnyType::UInt16(5u16));
+    }
+    #[test]
+    fn u16_subtraction() {
+        let initial: AnyType = 3u16.into();
+        let secondary: AnyType = 5u16.into();
+
+        let value = initial - secondary;
+        assert!(value == AnyType::ISize(-2isize));
+    }
+    #[test]
+    fn u16_multiplcation() {
+        let initial: AnyType = 3u16.into();
+        let secondary: AnyType = 2u16.into();
+
+        let value = initial * secondary;
+        assert!(value == AnyType::USize(6usize));
+    }
+    #[test]
+    fn u16_division() {
+        let initial: AnyType = 6u16.into();
+        let secondary: AnyType = 2u16.into();
+
+        let value = initial / secondary;
+        assert!(value == AnyType::UInt16(3u16));
+    }
+    #[test]
+    fn input_f32() {
+        let value: AnyType = 3f32.into();
+        assert!(value == AnyType::Float32(3f32));
+    }
+    #[test]
+    fn f32_addition() {
+        let initial: AnyType = 3f32.into();
+        let secondary: AnyType = 2f32.into();
+
+        let value = initial + secondary;
+        assert!(value == AnyType::Float32(5f32));
+    }
+    #[test]
+    fn f32_subtraction() {
+        let initial: AnyType = 3f32.into();
+        let secondary: AnyType = 5f32.into();
+
+        let value = initial - secondary;
+        assert!(value == AnyType::Float32(-2f32));
+    }
+    #[test]
+    fn f32_multiplcation() {
+        let initial: AnyType = 3f32.into();
+        let secondary: AnyType = 2f32.into();
+
+        let value = initial * secondary;
+        assert!(value == AnyType::Float64(6f64));
+    }
+    #[test]
+    fn f32_division() {
+        let initial: AnyType = 6f32.into();
+        let secondary: AnyType = 2f32.into();
+
+        let value = initial / secondary;
+        assert!(value == AnyType::Float32(3f32));
+    }
 }
