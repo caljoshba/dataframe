@@ -112,11 +112,11 @@ impl DataFrame {
         }
     }
 
-    pub fn get_returns_for_column(&mut self, column_name: &'static str, new_column_name: &'static str) {
+    pub fn get_returns_for_column(&mut self, column_name: &'static str, new_column_name: &'static str, rolling_mean: RollingMean) {
         let column_option = self.columns.iter().find(|c| c.name == column_name);
         if let Some(column) = column_option {
             let values: Vec<AnyType> = column.get_difference_to_last();
-            self.add_column_from_values(new_column_name, values, RollingMean::new(true, Some(5)));
+            self.add_column_from_values(new_column_name, values, rolling_mean);
         }
     }
 }
