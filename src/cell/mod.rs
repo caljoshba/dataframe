@@ -7,7 +7,6 @@ use std::cell::RefCell;
 use types::datatypes::AnyType;
 use std::rc::{ Rc };
 
-// #[derive(Display)]
 pub struct Cell {
     value: AnyType,
     row: RcRow,
@@ -49,10 +48,40 @@ impl PartialEq for Cell {
 }
 impl Eq for Cell {}
 
-// pub trait RollingMean {
-//     fn rolling_mean(&self, mean_over: usize) -> Option<AnyType>;
-//     fn sum_values(&self, total_values: usize) -> Option<AnyType>;
-// }
-
 pub type AnyTypeCell = RefCell<Cell>;
 pub type RcCell = Rc<AnyTypeCell>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::row::{
+        Row,
+        RcRow
+    };
+    #[test]
+    fn assign_row() {
+        let value: AnyType = 67u16.into();
+        let row: RcRow = Row::new(3);
+        let cell: RcCell = Cell::new(value, &row, "timmeh");
+
+        assert!(&row == cell.borrow().get_row());
+    }
+
+    #[test]
+    fn clone_row() {
+        let value: AnyType = 67u16.into();
+        let row: RcRow = Row::new(3);
+        let cell: RcCell = Cell::new(value, &row, "timmeh");
+
+        assert!(row == cell.borrow().clone_row());
+    }
+
+    #[test]
+    fn get_value() {
+        let value: AnyType = 67u16.into();
+        let row: RcRow = Row::new(3);
+        let cell: RcCell = Cell::new(value, &row, "timmeh");
+
+        assert!(&value == cell.borrow().get_value());
+    }
+}
