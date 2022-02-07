@@ -39,6 +39,10 @@ impl Cell {
     pub fn set_rolling_mean(&mut self, rolling_mean: Option<AnyType>) {
         self.rolling_mean = rolling_mean;
     }
+
+    pub fn get_rolling_mean(&self) -> Option<AnyType> {
+        self.rolling_mean
+    }
 }
 
 impl PartialEq for Cell {

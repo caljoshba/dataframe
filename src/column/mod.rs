@@ -69,6 +69,8 @@ impl Column {
         let mut cells = self.cells.borrow_mut();
         let cell_location = cell.borrow().get_row().borrow().index;
         cells.remove(cell_location);
+        // drop before calling recalculate so we can free the vec which needs to be borrowed later on
+        drop(cells);
         self.recalculate_rolling_means(&cell_location);
     }
 
@@ -87,6 +89,10 @@ impl Column {
         } else {
             self.grouped_values.insert(cell.borrow().get_value().clone(), RefCell::new(vec![Rc::clone(cell)]));
         }
+    }
+
+    pub fn get_grouped_values(&self, value: AnyType) -> Option<&RefCell<Vec<RcCell>>> {
+        self.grouped_values.get(&value)
     }
 
     fn remove_from_grouped_values(& mut self, cell: &RcCell) {
@@ -156,10 +162,10 @@ impl Column {
     pub fn cell_rolling_mean(&self, mean_over: usize, cell: &RcCell) -> Option<AnyType> {
         let mut rolling_mean = None;
         let cells = &self.cells.borrow();
-        if cells.len() < mean_over {
+        let cell_location = cell.borrow().get_row().borrow().index;
+        if cells.len() < mean_over || cell_location == 0 {
             rolling_mean = None;
-        } else {
-            let cell_location = cell.borrow().get_row().borrow().index;
+        } else {            
             let column_slice = &cells[(cell_location - (mean_over - 1))..=cell_location];
             let value: Vec<AnyType> = self.sum_slice_values(column_slice);
             rolling_mean = Some(value[0] / value[1]);
@@ -194,4 +200,126 @@ impl Column {
         }
         differences
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cell::{
+        types::datatypes::AnyType,
+        Cell,
+        RcCell,
+    };
+    use crate::row::{
+        Row,
+        RcRow,
+    };
+    use std::rc::{ Rc };
+    #[test]
+    fn add_cell() {
+        let value: AnyType = 67u16.into();
+        let row: RcRow = Row::new(3);
+        let cell: RcCell = Cell::new(value, &row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(false, None));
+        column.add_cell(&cell);
+
+        assert!(column.get_grouped_values(value) == Some(&RefCell::new(vec![Rc::clone(&cell)])));
+        assert!(column.get_cells()[0] == cell);
+    }
+
+    #[test]
+    fn add_cell_rolling_mean() {
+        let row: RcRow = Row::new(0);
+        let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
+        let second_row: RcRow = Row::new(1);
+        let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        column.add_cell(&cell);
+        column.add_cell(&second_cell);
+
+        assert!(column.get_cells()[0].borrow().get_rolling_mean() == None);
+        assert!(column.get_cells()[1].borrow().get_rolling_mean() == Some(68u16.into()));
+    }
+
+    #[test]
+    fn update_rolling_mean() {
+        let row: RcRow = Row::new(0);
+        let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
+        let second_row: RcRow = Row::new(1);
+        let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(false, None));
+        column.add_cell(&cell);
+        column.add_cell(&second_cell);
+
+        assert!(column.get_cells()[0].borrow().get_rolling_mean() == None);
+        assert!(column.get_cells()[1].borrow().get_rolling_mean() == None);
+
+        column.update_rolling_mean(RollingMean::new(true, Some(2)));
+
+        assert!(column.get_cells()[0].borrow().get_rolling_mean() == None);
+        assert!(column.get_cells()[1].borrow().get_rolling_mean() == Some(68u16.into()));
+    }
+
+    #[test]
+    fn drop_cell() {
+        let row: RcRow = Row::new(0);
+        let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
+        let second_row: RcRow = Row::new(1);
+        let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
+        let third_row: RcRow = Row::new(2);
+        let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        column.add_cell(&cell);
+        column.add_cell(&second_cell);
+        column.add_cell(&third_cell);
+
+        assert!(column.get_cells()[0].borrow().get_rolling_mean() == None);
+        assert!(column.get_cells()[1].borrow().get_rolling_mean() == Some(68u16.into()));
+        assert!(column.get_cells()[2].borrow().get_rolling_mean() == Some(70u16.into()));
+        // a bit dodgy here, but need to update the index of the third row before dropping the second row
+        third_row.borrow_mut().update_index(1);
+        column.drop_cell(second_cell);
+
+        assert!(column.get_cells()[0].borrow().get_rolling_mean() == None);
+        assert!(column.get_cells()[1].borrow().get_rolling_mean() == Some(69u16.into()));
+    }
+
+    #[test]
+    fn mean() {
+        let row: RcRow = Row::new(0);
+        let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
+        let second_row: RcRow = Row::new(1);
+        let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
+        let third_row: RcRow = Row::new(2);
+        let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        column.add_cell(&cell);
+        column.add_cell(&second_cell);
+        column.add_cell(&third_cell);
+
+        assert!(column.mean() == Some(69u16.into()));
+    }
+
+    #[test]
+    fn get_difference_to_last() {
+        let row: RcRow = Row::new(0);
+        let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
+        let second_row: RcRow = Row::new(1);
+        let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
+        let third_row: RcRow = Row::new(2);
+        let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        column.add_cell(&cell);
+        column.add_cell(&second_cell);
+        column.add_cell(&third_cell);
+
+        assert!(column.get_difference_to_last() == vec![AnyType::Null, 2isize.into(), 2isize.into()]);
+    }
+
 }
