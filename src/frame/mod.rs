@@ -16,6 +16,7 @@ use std::cell::{
     RefMut,
 };
 
+#[derive(Debug)]
 pub struct DataFrame {
     rows: RefCell<Vec<RcRow>>,
     columns: Vec<Column>

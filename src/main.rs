@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-mod cell;
-mod column;
-mod row;
-mod frame;
+pub mod cell;
+pub mod column;
+pub mod row;
+pub mod frame;
 
 use cell::{
     types::datatypes::AnyType,
@@ -27,4 +27,5 @@ fn main() {
             println!("{}", cell.borrow().get_value());
         }
     }
+    println!("{:?}", dataframe);
 }

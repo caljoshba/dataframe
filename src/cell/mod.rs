@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use types::datatypes::AnyType;
 use std::rc::{ Rc };
 
+#[derive(Debug)]
 pub struct Cell {
     value: AnyType,
     row: RcRow,

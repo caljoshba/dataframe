@@ -10,6 +10,7 @@ use crate::cell::{
     AnyTypeCell
 };
 
+#[derive(Debug)]
 pub struct Row {
     cells: RefCell<Vec<Weak<AnyTypeCell>>>,
     pub index: usize,

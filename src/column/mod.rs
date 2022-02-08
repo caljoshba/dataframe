@@ -15,6 +15,7 @@ use std::cell::{
 use std::rc::{ Rc };
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct RollingMean {
     should_calculate: bool,
     mean_over: usize
@@ -35,6 +36,7 @@ impl RollingMean {
     }
 }
 
+#[derive(Debug)]
 pub struct Column {
     cells: RefCell<Vec<RcCell>>,
     grouped_values: HashMap<AnyType, RefCell<Vec<RcCell>>>,
