@@ -253,4 +253,45 @@ mod tests {
         assert_eq!(dataframe.get_rows()[3].borrow().get_cells()[2].upgrade().unwrap().borrow().get_value(), &3isize.into());
         assert_eq!(dataframe.get_rows()[4].borrow().get_cells()[2].upgrade().unwrap().borrow().get_value(), &(-10isize).into());
     }
+
+    #[test]
+    fn rolling_mean() {
+        let columns = vec![
+            "rando",
+            "second"
+        ];
+        let mut dataframe = DataFrame::new(columns);
+        dataframe.update_column_rolling_mean("rando", RollingMean::new(true, Some(2)));
+        let cell_values: Vec<AnyType> = vec![
+            6usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values);
+        let cell_values2: Vec<AnyType> = vec![
+            7usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values2);
+        let cell_values3: Vec<AnyType> = vec![
+            7usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values3);
+        let cell_values4: Vec<AnyType> = vec![
+            9usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values4);
+        let cell_values5: Vec<AnyType> = vec![
+            1usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values5);
+        assert!(dataframe.get_columns().len() == 2);
+        assert!(dataframe.get_rows().len() == 5);
+        assert!(dataframe.get_rows()[0].borrow().get_cells().len() == 2);
+        assert_eq!(dataframe.get_rows()[2].borrow().get_cells()[0].upgrade().unwrap().borrow().get_rolling_mean(), Some(7usize.into()));
+        assert_eq!(dataframe.get_rows()[3].borrow().get_cells()[0].upgrade().unwrap().borrow().get_rolling_mean(), Some(8usize.into()));
+        assert_eq!(dataframe.get_rows()[4].borrow().get_cells()[0].upgrade().unwrap().borrow().get_rolling_mean(), Some(5usize.into()));
+    }
 }
