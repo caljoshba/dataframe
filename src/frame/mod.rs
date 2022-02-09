@@ -4,7 +4,8 @@ use crate::row::{
 };
 use crate::column::{
     Column,
-    RollingMean
+    RollingMean,
+    Returns,
 };
 use crate::cell::{
     types::datatypes::AnyType,
@@ -26,7 +27,7 @@ impl DataFrame {
     pub fn new(column_names: Vec<&'static str>) -> Self {
         let mut columns = vec![];
         for column_name in column_names.iter() {
-            let column = Column::new(*column_name, RollingMean::new(false, None));
+            let column = Column::new(*column_name, RollingMean::new(false, None), Returns::new(false, None));
             columns.push(column);
         }
 
@@ -44,20 +45,24 @@ impl DataFrame {
         &self.columns
     }
 
-    pub fn add_row(&mut self, cell_values: Vec<AnyType>) {
+    pub fn add_row(&mut self, cell_values: Vec<AnyType>) -> usize {
         let total_rows = self.rows.borrow().len();
         let row = Row::new(total_rows);
+        let row_index = row.borrow().index;
         for (index, cell_value) in cell_values.iter().enumerate() {
             let column: &mut Column = &mut self.columns[index];
             let cell = Cell::new(*cell_value, &row, &column.name.clone());
             row.borrow_mut().add_cell(&cell);
             column.add_cell(&cell);
         }
+        // this does not update the returns for columns
+        self.add_returns_for_cells(row_index, &row);
         self.rows.borrow_mut().push(row);
+        row_index
     }
 
     pub fn add_column_from_values(&mut self, column_name: &'static str, cell_values: Vec<AnyType>, rolling_mean: RollingMean) {
-        let mut column = Column::new(column_name, rolling_mean);
+        let mut column = Column::new(column_name, rolling_mean, Returns::new(false, None));
         for (index, cell_value) in cell_values.iter().enumerate() {
             let row = &self.rows.borrow()[index];
             let cell = Cell::new(*cell_value, row, column_name.clone());
@@ -113,11 +118,20 @@ impl DataFrame {
         }
     }
 
-    pub fn get_returns_for_column(&mut self, column_name: &'static str, new_column_name: &'static str, rolling_mean: RollingMean) {
-        let column_option = self.columns.iter().find(|c| c.name == column_name);
-        if let Some(column) = column_option {
-            let values: Vec<AnyType> = column.get_difference_to_last();
-            self.add_column_from_values(new_column_name, values, rolling_mean);
+    pub fn create_returns_for_column(&mut self, column_name: &'static str, new_column_name: &'static str, rolling_mean: RollingMean) {
+        let column = self.columns.iter_mut().find(|c| c.name == column_name).unwrap();
+        let values: Option<Vec<AnyType>> = column.update_returns(Returns::new(true, Some(new_column_name)));
+        self.add_column_from_values(new_column_name, values.unwrap(), rolling_mean);
+    }
+
+    pub fn add_returns_for_cells(&mut self, row_index: usize, row: &RcRow) {
+        let mut iterator =  self.columns.iter_mut();
+        for column in iterator.find(|c| c.returns.should_calculate) {
+            let value = column.get_difference_to_last(row_index);
+            let returns_column = iterator.find(|c| Some(c.name) == column.returns.column_name).unwrap();
+            let cell = Cell::new(value, row, returns_column.name.clone());
+            returns_column.add_cell(&cell);
+            row.borrow_mut().add_cell(&cell);
         }
     }
 }
@@ -176,5 +190,67 @@ mod tests {
         assert!(cell_ref2.upgrade().is_none());
         assert_eq!(dataframe.get_rows().len(), 2);
         assert_eq!(dataframe.get_columns().len(), 1);
+    }
+
+    #[test]
+    fn create_returns_column() {
+        let columns = vec![
+            "rando",
+            "second"
+        ];
+        let mut dataframe = DataFrame::new(columns);
+        dataframe.create_returns_for_column("rando", "rando_returns", RollingMean::new(true, Some(2)));
+        let cell_values: Vec<AnyType> = vec![
+            6u8.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values);
+
+        assert_eq!(dataframe.get_columns().len(), 3);
+        assert_eq!(dataframe.get_columns()[0].returns.should_calculate, true);
+        assert_eq!(dataframe.get_columns()[0].returns.column_name, Some("rando_returns"));
+        assert_eq!(dataframe.get_rows()[0].borrow().get_cells().len(), 3);
+        assert_eq!(dataframe.get_rows()[0].borrow().get_cells()[2].upgrade().unwrap().borrow().get_value(), &AnyType::Null);
+    }
+
+    #[test]
+    fn add_returns_column() {
+        let columns = vec![
+            "rando",
+            "second"
+        ];
+        let mut dataframe = DataFrame::new(columns);
+        dataframe.create_returns_for_column("rando", "rando_returns", RollingMean::new(true, Some(2)));
+        let cell_values: Vec<AnyType> = vec![
+            6.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values);
+        let cell_values2: Vec<AnyType> = vec![
+            7.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values2);
+        let cell_values3: Vec<AnyType> = vec![
+            8.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values3);
+        let cell_values4: Vec<AnyType> = vec![
+            11.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values4);
+        let cell_values5: Vec<AnyType> = vec![
+            1.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values5);
+        assert!(dataframe.get_columns().len() == 3);
+        assert!(dataframe.get_rows().len() == 5);
+        assert!(dataframe.get_rows()[0].borrow().get_cells().len() == 3);
+        assert_eq!(dataframe.get_rows()[2].borrow().get_cells()[2].upgrade().unwrap().borrow().get_value(), &1isize.into());
+        assert_eq!(dataframe.get_rows()[3].borrow().get_cells()[2].upgrade().unwrap().borrow().get_value(), &3isize.into());
+        assert_eq!(dataframe.get_rows()[4].borrow().get_cells()[2].upgrade().unwrap().borrow().get_value(), &(-10isize).into());
     }
 }

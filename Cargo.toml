@@ -3,6 +3,12 @@ name = "dataframe"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "dataframe"
+path = "src/main.rs"
+edition = "2021"
+crate-type = ["lib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

@@ -37,20 +37,37 @@ impl RollingMean {
 }
 
 #[derive(Debug)]
+pub struct Returns {
+    pub should_calculate: bool,
+    pub column_name: Option<&'static str>
+}
+
+impl Returns {
+    pub fn new(should_calculate: bool, column_name: Option<&'static str>) -> Self {
+        Self {
+            should_calculate,
+            column_name
+        }
+    } 
+}
+
+#[derive(Debug)]
 pub struct Column {
     cells: RefCell<Vec<RcCell>>,
     grouped_values: HashMap<AnyType, RefCell<Vec<RcCell>>>,
     pub name: &'static str,
     pub rolling_mean: RollingMean,
+    pub returns: Returns
 }
 
 impl Column {
-    pub fn new(name: &'static str, rolling_mean: RollingMean) -> Self {
+    pub fn new(name: &'static str, rolling_mean: RollingMean, returns: Returns) -> Self {
         Self {
             cells: RefCell::new(vec![]),
             grouped_values: HashMap::new(),
             name,
             rolling_mean,
+            returns
         }
     }
 
@@ -137,6 +154,19 @@ impl Column {
             } else {
                 cell.borrow_mut().set_rolling_mean(None);
             }            
+        }        
+    }
+
+    pub fn update_returns(&mut self, returns: Returns) -> Option<Vec<AnyType>> {
+        if returns.should_calculate != self.returns.should_calculate {
+            self.returns = returns;
+        }
+
+        if self.returns.should_calculate {
+            let differences = self.get_all_difference_to_last();
+            return Some(differences);
+        } else {
+            return None;
         }
         
     }
@@ -186,21 +216,26 @@ impl Column {
         })
     }
 
-    pub fn get_difference_to_last(&self) -> Vec<AnyType> {
+    pub fn get_all_difference_to_last(&self) -> Vec<AnyType> {
         let mut differences: Vec<AnyType> = vec![];
         let cells = self.cells.borrow();
-        for (index, cell) in cells.iter().enumerate() {
-            if index == 0 {
-                differences.push(AnyType::Null);
-                continue;
-            }
-
-            let previous_value = cells[index - 1].borrow().get_value().clone();
-            let current_value = cell.borrow().get_value().clone();
-
-            differences.push((current_value - previous_value).into());
+        for (index, _) in cells.iter().enumerate() {
+            let value = self.get_difference_to_last(index);
+            differences.push(value);
         }
         differences
+    }
+
+    pub fn get_difference_to_last(&self, index: usize) -> AnyType {
+        let cells = self.cells.borrow();
+        if index == 0 {
+            return AnyType::Null;
+        }
+
+        let previous_value = cells[index - 1].borrow().get_value().clone();
+        let current_value = cells[index].borrow().get_value().clone();
+
+        (current_value - previous_value).into()
     }
 }
 
@@ -223,7 +258,7 @@ mod tests {
         let row: RcRow = Row::new(3);
         let cell: RcCell = Cell::new(value, &row, "timmeh");
 
-        let mut column = Column::new("timmeh", RollingMean::new(false, None));
+        let mut column = Column::new("timmeh", RollingMean::new(false, None), Returns::new(false, None));
         column.add_cell(&cell);
 
         assert!(column.get_grouped_values(value) == Some(&RefCell::new(vec![Rc::clone(&cell)])));
@@ -237,7 +272,7 @@ mod tests {
         let second_row: RcRow = Row::new(1);
         let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
 
-        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)), Returns::new(false, None));
         column.add_cell(&cell);
         column.add_cell(&second_cell);
 
@@ -252,7 +287,7 @@ mod tests {
         let second_row: RcRow = Row::new(1);
         let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
 
-        let mut column = Column::new("timmeh", RollingMean::new(false, None));
+        let mut column = Column::new("timmeh", RollingMean::new(false, None), Returns::new(false, None));
         column.add_cell(&cell);
         column.add_cell(&second_cell);
 
@@ -274,7 +309,7 @@ mod tests {
         let third_row: RcRow = Row::new(2);
         let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
 
-        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)), Returns::new(false, None));
         column.add_cell(&cell);
         column.add_cell(&second_cell);
         column.add_cell(&third_cell);
@@ -299,7 +334,7 @@ mod tests {
         let third_row: RcRow = Row::new(2);
         let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
 
-        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)), Returns::new(false, None));
         column.add_cell(&cell);
         column.add_cell(&second_cell);
         column.add_cell(&third_cell);
@@ -308,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn get_difference_to_last() {
+    fn get_all_difference_to_last() {
         let row: RcRow = Row::new(0);
         let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
         let second_row: RcRow = Row::new(1);
@@ -316,12 +351,12 @@ mod tests {
         let third_row: RcRow = Row::new(2);
         let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
 
-        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)));
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)), Returns::new(false, None));
         column.add_cell(&cell);
         column.add_cell(&second_cell);
         column.add_cell(&third_cell);
 
-        assert!(column.get_difference_to_last() == vec![AnyType::Null, 2isize.into(), 2isize.into()]);
+        assert!(column.get_all_difference_to_last() == vec![AnyType::Null, 2isize.into(), 2isize.into()]);
     }
 
 }

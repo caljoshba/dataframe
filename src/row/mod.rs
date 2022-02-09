@@ -36,6 +36,18 @@ impl Row {
         self.cells.borrow()
     }
 
+    pub fn get_cell(&self, cell_index: usize) -> Option<RcCell> {
+        self.cells.borrow()[cell_index].upgrade()
+    }
+
+    pub fn get_last_cell(&self) -> Option<RcCell> {
+        let last_cell = self.cells.borrow().clone();
+        if let Some(cell) = last_cell.iter().last() {
+            return cell.upgrade();
+        }
+        None
+    }
+
     pub fn update_index(&mut self, index: usize) {
         self.index = index;
     }
