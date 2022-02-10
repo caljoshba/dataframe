@@ -9,10 +9,15 @@ use crate::cell::{
     RcCell,
     AnyTypeCell
 };
+use chrono::{
+    DateTime,
+    Utc
+};
 
 #[derive(Debug)]
 pub struct Row {
     cells: RefCell<Vec<Weak<AnyTypeCell>>>,
+    datetime: DateTime<Utc>,
     pub index: usize,
 }
 
@@ -20,6 +25,7 @@ impl Row {
     pub fn new(index: usize) -> RcRow {
         Rc::new(RefCell::new(Self {
             cells: RefCell::new(vec![]),
+            datetime: Utc::now(),
             index
         }))
     }
