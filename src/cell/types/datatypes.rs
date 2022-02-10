@@ -48,6 +48,58 @@ where
     }
 }
 
+// impl From<AnyType> for dyn Any {
+//     fn from(a: AnyType) -> Any {
+//         None
+//     }
+// }
+
+// impl AnyType {
+//     pub fn to_value(&self) -> AllowedTypes {
+//         match self {
+//             AnyType::Null => 0u8,
+//             AnyType::Boolean(val) => val,
+//             AnyType::Utf8(val) => val,
+//             AnyType::UInt8(val) => val,
+//             AnyType::UInt16(val) => val,
+//             AnyType::UInt32(val) => val,
+//             AnyType::UInt64(val) => val,
+//             AnyType::USize(val) => val,
+//             AnyType::Int8(val) => val,
+//             AnyType::Int16(val) => val,
+//             AnyType::Int32(val) => val,
+//             AnyType::Int64(val) => val,
+//             AnyType::ISize(val) => val,
+//             AnyType::Float32(val) => val,
+//             AnyType::Float64(val) => val
+//         }
+//     }
+// }
+
+// enum AllowedTypes {bool, str, u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64};
+
+// impl From<AnyType> for AllowedTypes {
+//     fn from(any_type: AnyType) -> AllowedTypes {
+//         match any_type {
+//             AnyType::Null => 0u8,
+//             AnyType::Boolean(val) => val,
+//             AnyType::Utf8(val) => val,
+//             AnyType::UInt8(val) => val,
+//             AnyType::UInt16(val) => val,
+//             AnyType::UInt32(val) => val,
+//             AnyType::UInt64(val) => val,
+//             AnyType::USize(val) => val,
+//             AnyType::Int8(val) => val,
+//             AnyType::Int16(val) => val,
+//             AnyType::Int32(val) => val,
+//             AnyType::Int64(val) => val,
+//             AnyType::ISize(val) => val,
+//             AnyType::Float32(val) => val,
+//             AnyType::Float64(val) => val
+//         }
+//     }
+// }
+
 impl Hash for AnyType {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use AnyType::*;
@@ -425,5 +477,21 @@ mod tests {
 
         let value = initial / secondary;
         assert!(value == AnyType::Float32(3f32));
+    }
+
+    #[test]
+    fn from_anytype() {
+        let initial: AnyType = 6f32.into();
+        let into: Option<f32> = initial.into();
+
+        assert_eq!(Some(6f32), into);
+    }
+
+    #[test]
+    fn from_anytype_incorrect_type() {
+        let initial: AnyType = 6f32.into();
+        let into: Option<i8> = initial.into();
+
+        assert_eq!(None, into);
     }
 }

@@ -57,6 +57,10 @@ impl Row {
     pub fn update_index(&mut self, index: usize) {
         self.index = index;
     }
+
+    pub fn get_datetime(&self) -> DateTime<Utc> {
+        self.datetime
+    }
 }
 
 impl PartialEq for Row {

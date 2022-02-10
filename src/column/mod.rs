@@ -14,6 +14,10 @@ use std::cell::{
 };
 use std::rc::{ Rc };
 use std::collections::HashMap;
+use chrono::{
+    DateTime,
+    Utc
+};
 
 #[derive(Debug)]
 pub struct RollingMean {
@@ -237,6 +241,20 @@ impl Column {
 
         (current_value - previous_value).into()
     }
+
+    pub fn get_values_as_vec_with_datetime<T>(&self) -> Vec<(DateTime<Utc>, T)>
+    where Option<T>: From<AnyType> {
+        let mut values: Vec<(DateTime<Utc>, T)> = vec![];
+        for cell in self.cells.borrow().iter() {
+            let datetime = cell.borrow().get_row().borrow().get_datetime();
+            let value_option: Option<T> = cell.borrow().get_value().clone().into();
+            if let Some(value) = value_option {
+                values.push((datetime, value));
+            }
+        }
+
+        values
+    }
 }
 
 #[cfg(test)]
@@ -357,6 +375,29 @@ mod tests {
         column.add_cell(&third_cell);
 
         assert!(column.get_all_difference_to_last() == vec![AnyType::Null, 2isize.into(), 2isize.into()]);
+    }
+
+    #[test]
+    fn get_values_as_vec_with_datetime() {
+        let row: RcRow = Row::new(0);
+        let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
+        let second_row: RcRow = Row::new(1);
+        let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
+        let third_row: RcRow = Row::new(2);
+        let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(false, None), Returns::new(false, None));
+        column.add_cell(&cell);
+        column.add_cell(&second_cell);
+        column.add_cell(&third_cell);
+
+        let values_as_vec = column.get_values_as_vec_with_datetime::<u16>();
+
+        assert_eq!(values_as_vec.len(), 3);
+        assert_eq!(values_as_vec[0].1, 67u16);
+        assert_eq!(values_as_vec[1].1, 69u16);
+        assert_eq!(values_as_vec[2].1, 71u16);
+        
     }
 
 }

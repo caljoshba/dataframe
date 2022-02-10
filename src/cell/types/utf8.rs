@@ -18,3 +18,12 @@ impl From<&'static str> for AnyType {
         AnyType::Utf8(value)
     }
 }
+
+impl From<AnyType> for Option<&'static str> {
+    fn from(any_type: AnyType) -> Option<&'static str> {
+        match any_type {
+            AnyType::Utf8(val) => Some(val),
+            _ => None
+        }
+    }
+}

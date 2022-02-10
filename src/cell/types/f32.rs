@@ -18,3 +18,12 @@ impl From<f32> for AnyType {
         AnyType::Float32(value)
     }
 }
+
+impl From<AnyType> for Option<f32> {
+    fn from(any_type: AnyType) -> Option<f32> {
+        match any_type {
+            AnyType::Float32(val) => Some(val),
+            _ => None
+        }
+    }
+}

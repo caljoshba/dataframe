@@ -18,3 +18,12 @@ impl From<u16> for AnyType {
         AnyType::UInt16(value)
     }
 }
+
+impl From<AnyType> for Option<u16> {
+    fn from(any_type: AnyType) -> Option<u16> {
+        match any_type {
+            AnyType::UInt16(val) => Some(val),
+            _ => None
+        }
+    }
+}

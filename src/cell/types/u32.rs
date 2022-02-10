@@ -18,3 +18,12 @@ impl From<u32> for AnyType {
         AnyType::UInt32(value)
     }
 }
+
+impl From<AnyType> for Option<u32> {
+    fn from(any_type: AnyType) -> Option<u32> {
+        match any_type {
+            AnyType::UInt32(val) => Some(val),
+            _ => None
+        }
+    }
+}

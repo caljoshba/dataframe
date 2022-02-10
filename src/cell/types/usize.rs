@@ -18,3 +18,12 @@ impl From<usize> for AnyType {
         AnyType::USize(value)
     }
 }
+
+impl From<AnyType> for Option<usize> {
+    fn from(any_type: AnyType) -> Option<usize> {
+        match any_type {
+            AnyType::USize(val) => Some(val),
+            _ => None
+        }
+    }
+}

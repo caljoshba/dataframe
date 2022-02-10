@@ -18,3 +18,12 @@ impl From<f64> for AnyType {
         AnyType::Float64(value)
     }
 }
+
+impl From<AnyType> for Option<f64> {
+    fn from(any_type: AnyType) -> Option<f64> {
+        match any_type {
+            AnyType::Float64(val) => Some(val),
+            _ => None
+        }
+    }
+}

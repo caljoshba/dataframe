@@ -19,3 +19,12 @@ impl From<bool> for AnyType {
         AnyType::Boolean(value)
     }
 }
+
+impl From<AnyType> for Option<bool> {
+    fn from(any_type: AnyType) -> Option<bool> {
+        match any_type {
+            AnyType::Boolean(val) => Some(val),
+            _ => None
+        }
+    }
+}

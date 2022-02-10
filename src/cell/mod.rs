@@ -4,7 +4,9 @@ use crate::row::{
     RcRow
 };
 use std::cell::RefCell;
-use types::datatypes::AnyType;
+use types::datatypes::{
+    AnyType,
+};
 use std::rc::{ Rc };
 
 #[derive(Debug)]

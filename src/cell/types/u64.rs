@@ -18,3 +18,12 @@ impl From<u64> for AnyType {
         AnyType::UInt64(value)
     }
 }
+
+impl From<AnyType> for Option<u64> {
+    fn from(any_type: AnyType) -> Option<u64> {
+        match any_type {
+            AnyType::UInt64(val) => Some(val),
+            _ => None
+        }
+    }
+}

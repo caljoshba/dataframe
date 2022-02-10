@@ -18,3 +18,12 @@ impl From<i16> for AnyType {
         AnyType::Int16(value)
     }
 }
+
+impl From<AnyType> for Option<i16> {
+    fn from(any_type: AnyType) -> Option<i16> {
+        match any_type {
+            AnyType::Int16(val) => Some(val),
+            _ => None
+        }
+    }
+}

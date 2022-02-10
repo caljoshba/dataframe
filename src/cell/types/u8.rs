@@ -19,8 +19,11 @@ impl From<u8> for AnyType {
     }
 }
 
-// impl Into<AnyType> for u8 {
-//     fn into(self) -> AnyType {
-//         AnyType::UInt8(self)
-//     }
-// }
+impl From<AnyType> for Option<u8> {
+    fn from(any_type: AnyType) -> Option<u8> {
+        match any_type {
+            AnyType::UInt8(val) => Some(val),
+            _ => None
+        }
+    }
+}
