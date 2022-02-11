@@ -16,6 +16,10 @@ use std::cell::{
     Ref,
     RefMut,
 };
+use chrono::{
+    DateTime,
+    Utc
+};
 
 #[derive(Debug)]
 pub struct DataFrame {
@@ -112,16 +116,22 @@ impl DataFrame {
     }
 
     pub fn update_column_rolling_mean(&mut self, column_name: &'static str, rolling_mean: RollingMean) {
-        let column_option = self.columns.iter_mut().find(|c| c.name == column_name);
-        if let Some(column) = column_option {
-            column.update_rolling_mean(rolling_mean);
-        }
+        let column = self.get_mut_column_by_name(column_name);
+        column.update_rolling_mean(rolling_mean);
     }
 
     pub fn create_returns_for_column(&mut self, column_name: &'static str, new_column_name: &'static str, rolling_mean: RollingMean) {
-        let column = self.columns.iter_mut().find(|c| c.name == column_name).unwrap();
+        let column = self.get_mut_column_by_name(column_name);
         let values: Option<Vec<AnyType>> = column.update_returns(Returns::new(true, Some(new_column_name)));
         self.add_column_from_values(new_column_name, values.unwrap(), rolling_mean);
+    }
+
+    fn get_mut_column_by_name(&mut self, column_name: &'static str) -> &mut Column {
+        self.columns.iter_mut().find(|c| c.name == column_name).unwrap()
+    }
+
+    fn get_column_by_name(&self, column_name: &'static str) -> &Column {
+        self.columns.iter().find(|c| c.name == column_name).unwrap()
     }
 
     pub fn add_returns_for_cells(&mut self, row_index: usize, row: &RcRow) {
@@ -133,6 +143,18 @@ impl DataFrame {
             returns_column.add_cell(&cell);
             row.borrow_mut().add_cell(&cell);
         }
+    }
+
+    pub fn get_column_values_with_datetime<T>(&self, column_name: &'static str) -> Vec<(DateTime<Utc>, T)>
+    where Option<T>: From<AnyType> {
+        let column = self.get_column_by_name(column_name);
+        column.get_values_as_vec_with_datetime()
+    }
+
+    pub fn get_column_values_with_unix_datetime<T>(&self, column_name: &'static str) -> Vec<(i64, T)>
+    where Option<T>: From<AnyType> {
+        let column = self.get_column_by_name(column_name);
+        column.get_values_as_vec_with_unix_datetime()
     }
 }
 #[cfg(test)]
@@ -293,5 +315,80 @@ mod tests {
         assert_eq!(dataframe.get_rows()[2].borrow().get_cells()[0].upgrade().unwrap().borrow().get_rolling_mean(), Some(7usize.into()));
         assert_eq!(dataframe.get_rows()[3].borrow().get_cells()[0].upgrade().unwrap().borrow().get_rolling_mean(), Some(8usize.into()));
         assert_eq!(dataframe.get_rows()[4].borrow().get_cells()[0].upgrade().unwrap().borrow().get_rolling_mean(), Some(5usize.into()));
+    }
+
+    #[test]
+    fn get_column_values_with_datetime() {
+        let columns = vec![
+            "rando",
+            "second"
+        ];
+        let mut dataframe = DataFrame::new(columns);
+        let cell_values: Vec<AnyType> = vec![
+            6usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values);
+        let cell_values2: Vec<AnyType> = vec![
+            7usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values2);
+        let cell_values3: Vec<AnyType> = vec![
+            7usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values3);
+        let cell_values4: Vec<AnyType> = vec![
+            9usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values4);
+        let cell_values5: Vec<AnyType> = vec![
+            1usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values5);
+        
+        let column_values: Vec<(DateTime<Utc>, usize)> = dataframe.get_column_values_with_datetime::<usize>("rando");
+
+        assert_eq!(column_values[0].1, 6usize);
+    }
+
+    fn get_column_values_with_unix_datetime() {
+        let columns = vec![
+            "rando",
+            "second"
+        ];
+        let mut dataframe = DataFrame::new(columns);
+        let cell_values: Vec<AnyType> = vec![
+            6usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values);
+        let cell_values2: Vec<AnyType> = vec![
+            7usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values2);
+        let cell_values3: Vec<AnyType> = vec![
+            7usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values3);
+        let cell_values4: Vec<AnyType> = vec![
+            9usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values4);
+        let cell_values5: Vec<AnyType> = vec![
+            1usize.into(),
+            "whoop".into()
+        ];
+        dataframe.add_row(cell_values5);
+        
+        let column_values: Vec<(i64, usize)> = dataframe.get_column_values_with_unix_datetime::<usize>("rando");
+
+        assert_eq!(column_values[0].1, 6usize);
     }
 }
