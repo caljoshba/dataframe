@@ -156,6 +156,12 @@ impl DataFrame {
         let column = self.get_column_by_name(column_name);
         column.get_values_as_vec_with_unix_datetime()
     }
+
+    pub fn get_rolling_means_as_vec_with_unix_datetime_diff<T>(&self, column_name: &'static str) -> Vec<(i64, T)>
+    where Option<T>: From<AnyType> {
+        let column = self.get_column_by_name(column_name);
+        column.get_rolling_means_as_vec_with_unix_datetime_diff()
+    }
 }
 #[cfg(test)]
 mod tests {
