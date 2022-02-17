@@ -24,4 +24,9 @@ This is the culmination of all the above. It contains vectors of the rows and co
 ## Running the application
 There isn't really anything to run other than the tests which you can do so ensuring you have the [rust toolchain installed](https://www.rust-lang.org/tools/install) and then running:
 
-  `cargo test`
+    cargo test
+
+Or to run the tests inside docker
+
+    docker-compose run --rm -T rusty cargo test
+

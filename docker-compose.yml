@@ -1,0 +1,16 @@
+version: '3.7'
+
+services:
+  rusty:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/code/src
+      - ./Cargo.lock:/code/Cargo.lock
+      - ./Cargo.toml:/code/Cargo.toml
+      # - ./target:/code/target
+    ports:
+      - 8090:8090
+    environment:
+      - RUST_BACKTRACE=full
