@@ -175,26 +175,6 @@ impl Column {
         
     }
 
-    // pub fn rolling_mean(&self, mean_over: usize) -> Vec<AnyType> {
-    //     let cells = self.cells.borrow();
-    //     if cells.len() < mean_over {
-    //         return vec![AnyType::Null; cells.len()];
-    //     }
-
-    //     let mut rolling_mean_values: Vec<AnyType> = vec![];
-
-    //     for slice in cells.windows(mean_over) {
-    //         if slice[0].borrow().get_value() == &AnyType::Null {
-    //             rolling_mean_values.push(AnyType::Null);
-    //         } else {
-    //             let value: Vec<AnyType> = self.sum_slice_values(slice);
-    //             rolling_mean_values.push(value[0] / value[1]);
-    //         }            
-    //     }
-
-    //     rolling_mean_values
-    // }
-
     pub fn cell_rolling_mean(&self, mean_over: usize, cell: &RcCell) -> Option<AnyType> {
         let mut rolling_mean = None;
         let cells = &self.cells.borrow();
@@ -271,7 +251,8 @@ impl Column {
     }
 
     pub fn get_values_as_vec_with_unix_datetime_diff<T>(&self) -> Vec<(i64, T)>
-    where Option<T>: From<AnyType> {
+    where Option<T>: From<AnyType>,
+    T: Into<f64> {
         let mut values: Vec<(i64, T)> = vec![];
         for (index, cell) in self.cells.borrow().iter().enumerate() {
             let mut datetime = cell.borrow().get_row().borrow().get_datetime().timestamp();
@@ -290,28 +271,62 @@ impl Column {
         values
     }
 
-    pub fn get_rolling_means_as_vec_with_unix_datetime_diff<T>(&self) -> Vec<(i64, T)>
-    where Option<T>: From<AnyType> {
-        let mut values: Vec<(i64, T)> = vec![];
-        let initial_datetime = self.cells.borrow()[0].borrow().get_row().borrow().get_datetime().timestamp();
+    pub fn get_rolling_means_as_vec_with_unix_datetime_diff<T>(&self) -> Vec<(f64, f64)>
+    where Option<T>: From<AnyType>,
+    T: Into<f64> {
+        let mut values: Vec<(f64, f64)> = vec![];
+        let initial_datetime: f64 = self.cells.borrow()[0].borrow().get_row().borrow().get_datetime().timestamp() as f64;
         for (index, cell) in self.cells.borrow().iter().enumerate() {
-            let mut datetime = cell.borrow().get_row().borrow().get_datetime().timestamp();
+            let mut datetime: f64 = cell.borrow().get_row().borrow().get_datetime().timestamp() as f64;
             if index == 0 {
-                datetime = 0i64;
-            } else  {                
+                datetime = 0f64;
+            } else  {
                 datetime = datetime - initial_datetime;
             }
             let rolling_mean_option: Option<AnyType> = cell.borrow().get_rolling_mean().clone();
             if let Some(rolling_mean) = rolling_mean_option {
                 let value_option: Option<T> = rolling_mean.into();
                 if let Some(value) = value_option {
-                    values.push((datetime, value));
+                    values.push((datetime, value.into()));
                 }
             }            
         }
 
         values
     }
+
+    pub fn rate_of_change_rolling_means_over_x_elements<T>(&self, x: usize) -> (Vec<(f64, f64)>, Vec<(f64, f64)>)
+    where Option<T>: From<AnyType>,
+    T: Into<f64> {
+        let rolling_means: Vec<(f64, f64)> = self.get_rolling_means_as_vec_with_unix_datetime_diff::<T>();
+        let mut rate_of_change: Vec<(f64, f64)> = vec![];
+        for (index, (datetime, _)) in rolling_means.iter().enumerate()  {
+            rate_of_change.push((datetime.clone(), self.least_squares(x, index, &rolling_means)));
+        }
+        (rolling_means, rate_of_change)
+    }
+
+    fn least_squares(&self, slice_size: usize, index: usize, rolling_means: &Vec<(f64, f64)>) -> f64 {
+        if index < (slice_size - 1) {
+            0f64
+        } else {
+            let sums = rolling_means[(index - (slice_size - 1))..=index].iter().fold((0f64, 0f64), |mut acc, (datetime, rolling_mean)| {
+                acc.0 += datetime;
+                acc.1 += rolling_mean;
+                acc
+            });
+            
+            let (mean_datetime, mean_rolling_mean) = (sums.0 / slice_size as f64, sums.1 / slice_size as f64);
+            let (numerator, denominator) = rolling_means[(index - (slice_size - 1))..=index].iter().fold((0f64, 0f64), |mut acc, (datetime, rolling_mean)| {
+                let diff_rolling_mean = rolling_mean - mean_rolling_mean;
+                let diff_datetime = datetime - mean_datetime;
+                acc.0 += diff_rolling_mean * diff_datetime;
+                acc.1 += diff_rolling_mean.powf(2f64);
+                acc
+            });
+            numerator / denominator
+        }
+    } 
 }
 
 #[cfg(test)]
@@ -326,7 +341,9 @@ mod tests {
         Row,
         RcRow,
     };
+    use core::time;
     use std::rc::{ Rc };
+    use std::thread;
     #[test]
     fn add_cell() {
         let value: AnyType = 67u16.into();
@@ -497,12 +514,45 @@ mod tests {
         column.add_cell(&third_cell);
         column.add_cell(&fourth_cell);
 
-        let values_as_vec: Vec<(i64, u16)> = column.get_rolling_means_as_vec_with_unix_datetime_diff::<u16>();
+        let values_as_vec: Vec<(f64, f64)> = column.get_rolling_means_as_vec_with_unix_datetime_diff::<u16>();
 
         assert_eq!(values_as_vec.len(), 3);
-        assert_eq!(values_as_vec[0].1, 68u16);
-        assert_eq!(values_as_vec[1].1, 70u16);
-        assert_eq!(values_as_vec[2].1, 74u16);        
+        assert_eq!(values_as_vec[0].1, 68f64);
+        assert_eq!(values_as_vec[1].1, 70f64);
+        assert_eq!(values_as_vec[2].1, 74f64);        
+    }
+
+    #[test]
+    fn rate_of_change_rolling_means_over_x_elements() {
+        let row: RcRow = Row::new(0);
+        let cell: RcCell = Cell::new(67u16.into(), &row, "timmeh");
+        // sleep to ensure that there is a duration over which an average can be found
+        thread::sleep(time::Duration::from_millis(2000));
+        let second_row: RcRow = Row::new(1);
+        let second_cell: RcCell = Cell::new(69u16.into(), &second_row, "timmeh");
+        thread::sleep(time::Duration::from_millis(1500));
+        let third_row: RcRow = Row::new(2);
+        let third_cell: RcCell = Cell::new(71u16.into(), &third_row, "timmeh");
+        thread::sleep(time::Duration::from_millis(2400));
+        let fourth_row: RcRow = Row::new(3);
+        let fourth_cell: RcCell = Cell::new(77u16.into(), &fourth_row, "timmeh");
+        thread::sleep(time::Duration::from_millis(6000));
+        let fifth_row: RcRow = Row::new(4);
+        let fifth_cell: RcCell = Cell::new(77u16.into(), &fifth_row, "timmeh");
+
+        let mut column = Column::new("timmeh", RollingMean::new(true, Some(2)), Returns::new(false, None));
+        column.add_cell(&cell);
+        column.add_cell(&second_cell);
+        column.add_cell(&third_cell);
+        column.add_cell(&fourth_cell);
+        column.add_cell(&fifth_cell);
+
+        let (rol, roc): (Vec<(f64, f64)>, Vec<(f64, f64)>) = column.rate_of_change_rolling_means_over_x_elements::<u16>(2);
+
+        assert_eq!(roc.len(), 4);
+        assert_eq!(roc[0].1, 0f64);
+        // assert_ne!(roc[1].1, 0f64);
+        assert_ne!(roc[3].0, 0f64);      
     }
 
 }

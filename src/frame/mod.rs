@@ -157,10 +157,11 @@ impl DataFrame {
         column.get_values_as_vec_with_unix_datetime()
     }
 
-    pub fn get_rolling_means_as_vec_with_unix_datetime_diff<T>(&self, column_name: &'static str) -> Vec<(i64, T)>
-    where Option<T>: From<AnyType> {
+    pub fn get_rolling_means_as_vec_with_unix_datetime_diff<T>(&self, column_name: &'static str, rate_of_change_over: usize) -> (Vec<(f64, f64)>, Vec<(f64, f64)>)
+    where Option<T>: From<AnyType>,
+    T: Into<f64> {
         let column = self.get_column_by_name(column_name);
-        column.get_rolling_means_as_vec_with_unix_datetime_diff()
+        column.rate_of_change_rolling_means_over_x_elements(rate_of_change_over)
     }
 }
 #[cfg(test)]
